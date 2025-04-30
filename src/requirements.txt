@@ -1,0 +1,8 @@
+# Discord Guardian Bot 6.5 - Pterohost (https://pterohost.com)
+# MIT License: https://github.com/Pterohost/Luxfurd
+# Copyright (c) 2025 Pterohost
+
+discord.py>=2.3.2
+pyyaml>=6.0.1
+schema>=0.7.5
+Pillow>=10.0.0
