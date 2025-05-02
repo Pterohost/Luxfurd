@@ -1,13 +1,13 @@
-# Discord Guardian Bot 6.5 - Pterohost (https://pterohost.com)
-# MIT License: https://github.com/Pterohost/Luxfurd
 # Copyright (c) 2025 Pterohost
+# Licensed under the MIT License (https://opensource.org/licenses/MIT)
 
 import discord
 from discord.ext import commands
-from collections import defaultdict, deque
-import re
 from ..bot import GuardianBot
 from ..utils import apply_action
+from collections import defaultdict, deque
+import re
+from datetime import datetime, timezone
 
 class ModerationCog(commands.Cog):
     def __init__(self, bot: GuardianBot) -> None:
@@ -21,15 +21,12 @@ class ModerationCog(commands.Cog):
     async def on_message(self, msg: discord.Message) -> None:
         if msg.author.bot or not msg.guild or msg.type is not discord.MessageType.default:
             return
-
         cfg = self.bot.config.guild_cfg(msg.guild.id)
         if any(role.id in cfg["ignore_roles"] for role in msg.author.roles) or msg.author.id in cfg["ignore_users"]:
             return
-
         mod, acts = cfg["moderation"], cfg["actions"]
-        now = discord.utils.utcnow()
+        now = datetime.now(timezone.utc)
         key = (msg.guild.id, msg.author.id)
-
         burst = self._burst[key]
         burst.append(now)
         while burst and (now - burst[0]).total_seconds() > mod["spam"]["interval_seconds"]:
@@ -37,7 +34,6 @@ class ModerationCog(commands.Cog):
         if len(burst) >= mod["spam"]["max_messages"]:
             await apply_action(self.bot, msg.author, acts["spam"], "spam", guild=msg.guild, delete_msg=msg, channel=msg.channel)
             return
-
         if msg.content == self._last[key]:
             rep = self._repeat[key]
             rep.append(now)
@@ -49,19 +45,16 @@ class ModerationCog(commands.Cog):
         else:
             self._repeat[key].clear()
         self._last[key] = msg.content
-
         if mod["links"]["block"] and re.search(r"https?://", msg.content):
             await apply_action(self.bot, msg.author, acts["links"], "links", guild=msg.guild, delete_msg=msg, channel=msg.channel)
             return
-
         if mod["attachments"]["max"] == 0 and msg.attachments:
             await apply_action(self.bot, msg.author, acts["attachments"], "attachments", guild=msg.guild, delete_msg=msg, channel=msg.channel)
             return
-
-        if (cnt := len(re.findall(r"[\U00010000-\U0010ffff]", msg.content))) > mod["emoji"]["max"] >= 0:
+        emoji_count = len(re.findall(r"[\U00010000-\U0010ffff]", msg.content))
+        if emoji_count > mod["emoji"]["max"] and mod["emoji"]["max"] >= 0:
             await apply_action(self.bot, msg.author, acts["emoji"], "emoji", guild=msg.guild, delete_msg=msg, channel=msg.channel)
             return
-
         mentions_count = len(msg.mentions)
         if mentions_count > mod["mentions"]["max_per_message"]:
             await apply_action(self.bot, msg.author, acts["mentions"], "mentions", guild=msg.guild, delete_msg=msg, channel=msg.channel)

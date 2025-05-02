@@ -1,11 +1,12 @@
-# Discord Guardian Bot 6.5 - Pterohost (https://pterohost.com)
-# MIT License: https://github.com/Pterohost/Luxfurd
 # Copyright (c) 2025 Pterohost
+# Licensed under the MIT License (https://opensource.org/licenses/MIT)
 
 from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 import discord
-from .utils import LOG
+import logging
+
+LOG = logging.getLogger("guardian")
 
 class WarningManager:
     def __init__(self):
@@ -37,9 +38,8 @@ class WarningManager:
             try:
                 message = await channel.fetch_message(message_id)
                 await message.delete()
-            except discord.HTTPException as e:
-                if e.code != 10008:
-                    LOG.warning(f"Не удалось удалить сообщение {message_id}: {e}")
+            except discord.HTTPException:
+                pass
         self.warning_messages[guild.id][user_id].clear()
 
     def get_warning_count(self, guild_id: int, user_id: int, reason: str) -> int:

@@ -1,15 +1,19 @@
-# Discord Guardian Bot 6.5 - Pterohost (https://pterohost.com)
-# MIT License: https://github.com/Pterohost/Luxfurd
 # Copyright (c) 2025 Pterohost
+# Licensed under the MIT License (https://opensource.org/licenses/MIT)
 
 import discord
 from discord.ext import commands
-from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
+from ..bot import GuardianBot
+from ..utils import apply_action
+import asyncio
 import random
 import string
-from ..bot import GuardianBot
-from ..utils import apply_action, LOG
+from PIL import Image, ImageDraw, ImageFont
+from io import BytesIO
+import logging
+from datetime import datetime, timezone
+
+LOG = logging.getLogger("guardian")
 
 class VerificationCog(commands.Cog):
     def __init__(self, bot: GuardianBot) -> None:
@@ -17,28 +21,29 @@ class VerificationCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
+        await asyncio.sleep(5)
         for guild in self.bot.guilds:
             self.bot.config.guild_cfg(guild.id)
 
     @commands.Cog.listener()
     async def on_member_join(self, m: discord.Member) -> None:
+        self.bot.join_times[m.guild.id][m.id] = datetime.now(timezone.utc)
+        lg = self.bot.get_cog("LoggingCog")
+        if lg:
+            await lg.log_join_leave(m.guild, m, "join")
         cfg = self.bot.config.guild_cfg(m.guild.id)
         acts = cfg["actions"]
-
         if m.bot and cfg["bots_locked"] and m.id not in cfg["bots_allowed"]:
             await apply_action(self.bot, m, acts["bot_join"], "bot_join", guild=m.guild)
             return
-
         v = cfg["verification"]
-        if (discord.utils.utcnow() - m.created_at).days < v["min_account_age_days"]:
+        if (datetime.now(timezone.utc) - m.created_at).days < v["min_account_age_days"]:
             await apply_action(self.bot, m, acts["min_account_age"], "min_account_age", guild=m.guild)
             return
-
         if v["require_avatar"] and m.avatar is None:
             await apply_action(self.bot, m, acts["require_avatar"], "require_avatar", guild=m.guild)
             if acts["require_avatar"] in {"kick", "ban"}:
                 return
-
         if v["captcha_mode"] != "none" and not await self._captcha(m, v["captcha_mode"]):
             await apply_action(self.bot, m, acts["captcha_fail"], "captcha_fail", guild=m.guild)
 
@@ -60,10 +65,9 @@ class VerificationCog(commands.Cog):
                 await self.bot.wait_for("reaction_add", check=chk, timeout=60)
                 return True
             return True
-        except discord.utils.TimeoutError:
+        except asyncio.TimeoutError:
             return False
-        except discord.HTTPException as e:
-            LOG.error(f"Ошибка капчи для {mem}: {e}")
+        except discord.HTTPException:
             return False
 
     @staticmethod
