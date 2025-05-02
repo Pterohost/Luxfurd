@@ -1,4 +1,4 @@
-# Discord Guardian Bot 6.5
+# Luxfurd v1
 
 Простой бот для модерации Discord-серверов от [Pterohost](https://pterohost.com)! Это open-source проект распространяемый под лицензией MIT. Исходный код доступен на [GitHub](https://github.com/Pterohost/Luxfurd). 
 
